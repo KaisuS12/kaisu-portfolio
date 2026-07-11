@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kaisu Sadashi</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080808'/%3E%3Ctext x='50' y='68' font-family='Georgia,serif' font-size='58' font-weight='700' fill='%2300b8d9' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E" />
+
+  <!-- Theme (light/dark/system) — set before first paint to avoid a flash of the wrong theme -->
+  <script>
+    (function () {
+      var KEY = 'theme', root = document.documentElement;
+      var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+      function pref() {
+        try {
+          var v = localStorage.getItem(KEY);
+          return (v === 'light' || v === 'dark' || v === 'system') ? v : 'dark';
+        } catch (e) { return 'dark'; }
+      }
+      function isLight(p) { return p === 'light' || (p === 'system' && !!mq && mq.matches); }
+      var p = pref();
+      root.classList.toggle('light', isLight(p));
+      root.dataset.themePref = p;
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Custom Cursor -->
+  <div id="cursor-dot"></div>
+  <div id="cursor-ring"></div>
+
+  <!-- Page Intro Overlay -->
+  <div id="intro-overlay">
+    <div class="intro-inner">
+      <div class="intro-logo">K.K.S</div>
+      <div class="intro-line"></div>
+    </div>
+  </div>
+
+  <!-- Animated Mesh Background -->
+  <div id="mesh-bg"></div>
+
+  <!-- Section Counter -->
+  <div id="section-counter">
+    <span id="counter-current">01</span>
+    <span class="counter-sep">/</span>
+    <span id="counter-total">03</span>
+  </div>
+
+  <!-- Sidebar Navigation (desktop, ≥1024px) -->
+  <aside id="sidebar">
+    <div class="sidebar-top">
+      <a href="#hero" class="sidebar-logo">K.K.S</a>
+      <nav class="sidebar-nav">
+        <ul>
+          <li><a href="#hero" class="side-link">Home</a></li>
+          <li><a href="#skills" class="side-link">Skills</a></li>
+          <li><a href="#projects" class="side-link">Projects</a></li>
+          <li><a href="#contact" class="side-link">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="sidebar-footer">
+      <div class="theme-switch" role="group" aria-label="Theme">
+        <button type="button" class="theme-opt" data-theme-opt="light" aria-label="Light theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
+        <button type="button" class="theme-opt" data-theme-opt="dark" aria-label="Dark theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" class="theme-opt" data-theme-opt="system" aria-label="System theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="page">
+
+  <!-- Navigation (mobile / tablet, <1024px) -->
+  <nav id="navbar">
+    <div class="nav-inner">
+      <a href="#hero" class="nav-logo">K.K.S</a>
+
+      <div class="nav-right">
+        <ul class="nav-links">
+          <li><a href="#hero" class="nav-link">Home</a></li>
+          <li><a href="#skills" class="nav-link">Skills</a></li>
+          <li><a href="#projects" class="nav-link">Projects</a></li>
+          <li><a href="#contact" class="nav-link">Contact</a></li>
+        </ul>
+
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <button type="button" class="theme-opt" data-theme-opt="light" aria-label="Light theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <button type="button" class="theme-opt" data-theme-opt="dark" aria-label="Dark theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button type="button" class="theme-opt" data-theme-opt="system" aria-label="System theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </button>
+        </div>
+
+        <!-- Hamburger (mobile) -->
+        <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile drawer -->
+    <div class="nav-mobile">
+      <ul>
+        <li><a href="#hero"     class="nav-link-m">Home</a></li>
+        <li><a href="#skills"   class="nav-link-m">Skills</a></li>
+        <li><a href="#projects" class="nav-link-m">Projects</a></li>
+        <li><a href="#contact"  class="nav-link-m">Contact</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section id="hero">
+    <div class="aurora aurora-1"></div>
+    <div class="aurora aurora-2"></div>
+    <div class="aurora aurora-3"></div>
+    <canvas id="particle-canvas"></canvas>
+  <div id="hero-spotlight"></div>
+
+    <div class="hero-content" data-reveal>
+      <img id="hero-pfp" src="" alt="Profile photo" class="hero-pfp" style="display:none;" />
+      <p class="hero-greeting">Hi, I'm</p>
+      <h1 class="hero-name" data-text="Karl Kaisser Sipe">Karl Kaisser Sipe</h1>
+      <h2 class="hero-role"><span id="typed-role"></span><span class="cursor-blink">|</span></h2>
+      <p class="hero-bio">
+        I build AI-powered applications and full-stack web products that solve real problems.
+        Focused on the intersection of machine learning and modern web development — turning
+        complex systems into intuitive, fast experiences.
+      </p>
+      <div class="hero-cta">
+        <a href="#projects" class="btn btn-primary">View My Work</a>
+        <a href="#contact"  class="btn btn-outline">Contact Me</a>
+      </div>
+    </div>
+    <div class="scroll-indicator" id="scroll-indicator">
+      <span></span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section id="skills">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>02 — skills</p>
+      <h2 class="section-title" data-reveal>Skills &amp; Tools</h2>
+      <p class="section-sub" data-reveal data-delay="100">Technologies I work with.</p>
+
+      <div class="skills-card" data-reveal data-delay="200">
+        <div class="skills-tabs">
+          <button class="tab-btn active" data-tab="frontend">Front-End</button>
+          <button class="tab-btn" data-tab="backend">Back-End</button>
+          <button class="tab-btn" data-tab="tools">Tools</button>
+        </div>
+
+        <div class="skills-panel active" id="tab-frontend">
+          <div class="tech-grid" id="grid-frontend"><!-- rendered by script.js --></div>
+        </div>
+        <div class="skills-panel" id="tab-backend">
+          <div class="tech-grid" id="grid-backend"><!-- rendered by script.js --></div>
+        </div>
+        <div class="skills-panel" id="tab-tools">
+          <div class="tech-grid" id="grid-tools"><!-- rendered by script.js --></div>
+        </div>
+      </div>
+
+      <!-- Proficiency Bars -->
+      <div class="proficiency" data-reveal data-delay="300">
+        <h3 class="proficiency-title">Proficiency</h3>
+        <div class="bar-list" id="bar-list"><!-- rendered by script.js --></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Projects -->
+  <section id="projects">
+    <div class="projects-sticky">
+      <div class="section-inner">
+        <p class="section-eyebrow" data-reveal>03 — projects</p>
+        <h2 class="section-title" data-reveal>Projects</h2>
+        <p class="section-sub" data-reveal data-delay="100">Things I've built — tap a card to browse.</p>
+      </div>
+      <div class="projects-track-wrap">
+        <div class="projects-track" id="projects-track">
+          <!-- Rendered by script.js from localStorage -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact">
+    <div class="section-inner contact-inner">
+      <p class="section-eyebrow" data-reveal>04 — contact</p>
+      <h2 class="section-title" data-reveal>Get In Touch</h2>
+      <p class="section-sub" data-reveal data-delay="100">
+        I'm currently open to new opportunities. Whether you have a question
+        or just want to say hi — my inbox is open.
+      </p>
+      <a href="mailto:your@email.com" class="contact-email" data-reveal data-delay="200">kaisssipe@gmail.com</a>
+      <div class="social-links" data-reveal data-delay="300">
+        <a href="https://github.com/KaisuS12" target="_blank" rel="noopener" class="social-link" aria-label="GitHub">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+        <a href="https://linkedin.com/in/yourusername" target="_blank" rel="noopener" class="social-link" aria-label="LinkedIn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+          </svg>
+          LinkedIn
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 Kaisu Sadashi</p>
+  </footer>
+
+  </div><!-- #page -->
+
+  <script src="skills-registry.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

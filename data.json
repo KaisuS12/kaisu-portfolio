@@ -1,0 +1,61 @@
+{
+  "name": "Karl Kaisser Sipe",
+  "role": "AI Engineer & Full-Stack Developer",
+  "bio": "I build AI-powered applications and full-stack web products that solve real problems. Focused on the intersection of machine learning and modern web development — turning complex systems into intuitive, fast experiences.",
+  "profilePic": null,
+  "skills": {
+    "frontend": ["html5","css3","javascript","typescript","react","nextjs","tailwindcss"],
+    "backend":  ["nodejs","express","python","fastapi","postgresql","docker","pytorch","tensorflow","scikitlearn","pandas","numpy"],
+    "tools":    ["git","github","vscode","langchain"]
+  },
+  "proficiency": [
+    { "label": "HTML / CSS", "pct": 92 },
+    { "label": "Python",     "pct": 85 },
+    { "label": "JavaScript", "pct": 80 },
+    { "label": "React.js",   "pct": 75 },
+    { "label": "Node.js",    "pct": 70 },
+    { "label": "SQL",        "pct": 65 }
+  ],
+  "projects": [
+    {
+      "id": "1",
+      "title": "Neural Chat",
+      "badge": "In Progress",
+      "desc": "Conversational AI assistant with persistent memory and document Q&A, powered by LangChain, FastAPI, and React.",
+      "tags": ["LangChain","FastAPI","React","Python"],
+      "github": "#",
+      "demo": "",
+      "accentColor": "rgba(0,184,217,0.18)"
+    },
+    {
+      "id": "2",
+      "title": "TaskFlow",
+      "badge": "",
+      "desc": "Full-stack project management app with real-time collaboration, authentication, and drag-and-drop task boards.",
+      "tags": ["React","Node.js","PostgreSQL","Docker"],
+      "github": "#",
+      "demo": "#",
+      "accentColor": "rgba(120,60,220,0.18)"
+    },
+    {
+      "id": "3",
+      "title": "SentimentLens",
+      "badge": "",
+      "desc": "ML-powered REST API that classifies text sentiment and emotion from social media data using a fine-tuned model.",
+      "tags": ["Python","scikit-learn","FastAPI","NumPy"],
+      "github": "#",
+      "demo": "",
+      "accentColor": "rgba(0,200,120,0.15)"
+    },
+    {
+      "id": "4",
+      "title": "This Portfolio",
+      "badge": "",
+      "desc": "Built from scratch with vanilla HTML, CSS, and JS — featuring a particle canvas, aurora animations, and a clean project grid.",
+      "tags": ["HTML5","CSS3","JavaScript"],
+      "github": "#",
+      "demo": "",
+      "accentColor": "rgba(255,150,30,0.15)"
+    }
+  ]
+}
