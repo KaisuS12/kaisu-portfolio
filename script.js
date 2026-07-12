@@ -831,15 +831,39 @@ fetch('/api/data')
     opts.forEach(el => el.classList.toggle('is-active', el.dataset.themeOpt === p));
   }
 
-  function apply(p, animate) {
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function setThemeClass(p) {
+    root.classList.toggle('light', isLight(p));
+    root.dataset.themePref = p;
+    syncButtons(p);
+  }
+
+  /* `origin` is the {x,y} viewport point the circle expands from (the button
+     that was clicked) — falls back to the crossfade transition on browsers
+     without the View Transitions API, or when reduced motion is requested. */
+  function apply(p, animate, origin) {
+    const canCircleReveal = animate && !reducedMotion() && typeof document.startViewTransition === 'function';
+
+    if (canCircleReveal) {
+      if (origin) {
+        root.style.setProperty('--vt-x', origin.x + 'px');
+        root.style.setProperty('--vt-y', origin.y + 'px');
+      }
+      const radius = Math.hypot(window.innerWidth, window.innerHeight);
+      root.style.setProperty('--vt-radius', radius + 'px');
+      document.startViewTransition(() => setThemeClass(p));
+      return;
+    }
+
     if (animate) {
       root.classList.add('theme-anim');
       clearTimeout(animT);
       animT = setTimeout(() => root.classList.remove('theme-anim'), 500);
     }
-    root.classList.toggle('light', isLight(p));
-    root.dataset.themePref = p;
-    syncButtons(p);
+    setThemeClass(p);
   }
 
   apply(getPref(), false);
@@ -848,7 +872,8 @@ fetch('/api/data')
     btn.addEventListener('click', () => {
       const p = btn.dataset.themeOpt;
       try { localStorage.setItem(KEY, p); } catch (e) {}
-      apply(p, true);
+      const r = btn.getBoundingClientRect();
+      apply(p, true, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
     });
   });
 

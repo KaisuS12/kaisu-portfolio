@@ -28,13 +28,39 @@ html.light {
   --hairline-strong:  200 200 200;
 }
 
-/* Coordinated color crossfade while switching themes (see script.js) */
+/* Coordinated color crossfade while switching themes (see script.js) —
+   fallback for browsers without the View Transitions API below. */
 html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after {
   transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease,
               box-shadow 0.4s ease, fill 0.4s ease, stroke 0.4s ease !important;
 }
 @media (prefers-reduced-motion: reduce) {
   html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after { transition: none !important; }
+}
+
+/* Expanding-circle theme transition, driven by the View Transitions API.
+   --vt-x/--vt-y (the clicked theme button's position) and --vt-radius are
+   set in script.js right before calling document.startViewTransition(). */
+:root {
+  --vt-x: 50%;
+  --vt-y: 50%;
+  --vt-radius: 150vmax;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 0;
+}
+::view-transition-new(root) {
+  z-index: 1;
+  animation: theme-circle-reveal 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes theme-circle-reveal {
+  from { clip-path: circle(0px at var(--vt-x) var(--vt-y)); }
+  to   { clip-path: circle(var(--vt-radius) at var(--vt-x) var(--vt-y)); }
 }
 
 /* ── Reset ─────────────────────────────────────────────────── */
