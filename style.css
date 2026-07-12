@@ -66,6 +66,14 @@ html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *
 /* ── Reset ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Suppresses the default gray/blue tap-highlight box mobile browsers flash
+   on anything tappable (project cards, cert cards, nav links, buttons) —
+   the site already has its own hover/active states, so this box just looks
+   like an unstyled rendering glitch on top of them. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html { scroll-behavior: smooth; scroll-padding-top: var(--nav-h); }
 
 body {
