@@ -1531,6 +1531,15 @@ html.light .deck-card { box-shadow: 0 20px 44px rgba(10,10,10,0.1); }
 
   .social-links    { flex-direction: column; align-items: center; }
   .social-link     { width: 100%; max-width: 240px; justify-content: center; }
+
+  /* Tighter vertical rhythm — the default spacing was tuned for wider
+     screens and left large, uneven-feeling gaps stacked on a narrow phone. */
+  .hero-content    { padding: 1.5rem 1.25rem; }
+  .hero-pfp        { width: 88px; height: 88px; margin-bottom: 1.1rem; }
+  .hero-greeting   { margin-bottom: 0.5rem; }
+  .hero-name       { margin-bottom: 0.5rem; }
+  .hero-role       { margin-bottom: 0.85rem; }
+  .hero-bio        { margin-bottom: 1.5rem; line-height: 1.65; }
 }
 
 /* Very small — 360px */
