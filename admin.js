@@ -19,9 +19,9 @@ window.addEventListener('error', e => {
     ' — please screenshot this and report it.';
 });
 
-const STORAGE_KEY     = 'portfolio_data';
 const PIN_KEY         = 'admin_pin';
 const SESSION_KEY     = 'admin_unlocked';
+const SECRET_KEY      = 'admin_secret_hash'; // SHA-256 of the PIN, sent as the API write credential
 
 const DEFAULT_SKILLS = {
   frontend: ['html5','css3','javascript','typescript','react','nextjs','tailwindcss'],
@@ -57,20 +57,102 @@ const DEFAULTS = {
     { id: '2', title: 'TaskFlow',       badge: '',            desc: 'Full-stack project management app with real-time collaboration, authentication, and drag-and-drop task boards.',    tags: ['React','Node.js','PostgreSQL','Docker'],       github: '#', demo: '#', accentColor: 'rgba(120,60,220,0.18)' },
     { id: '3', title: 'SentimentLens', badge: '',            desc: 'ML-powered REST API that classifies text sentiment and emotion from social media data using a fine-tuned model.',  tags: ['Python','scikit-learn','FastAPI','NumPy'],     github: '#', demo: '',  accentColor: 'rgba(0,200,120,0.15)'  },
     { id: '4', title: 'This Portfolio', badge: '',            desc: 'Built from scratch with vanilla HTML, CSS, and JS — featuring a particle canvas, aurora animations, and horizontal scroll.', tags: ['HTML5','CSS3','JavaScript'], github: '#', demo: '',  accentColor: 'rgba(255,150,30,0.15)' },
+  ],
+  certifications: [
+    { id: 'c1', title: 'AWS Certified Cloud Practitioner', issuer: 'Amazon Web Services', date: '2025', url: '', image: null },
+    { id: 'c2', title: 'Deep Learning Specialization',     issuer: 'DeepLearning.AI',     date: '2024', url: '', image: null },
   ]
 };
 
-/* ── Storage helpers ─────────────────────────────────────────── */
-function load() {
+/* ── Data layer — talks to /api/data (Vercel Blob-backed) instead of localStorage ── */
+async function apiFetch(path, { method = 'GET', body } = {}) {
+  const headers = {};
+  const opts = { method, headers };
+
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  if (method !== 'GET') {
+    const secret = sessionStorage.getItem(SECRET_KEY);
+    if (secret) headers['Authorization'] = 'Bearer ' + secret;
+  }
+
+  // 20s timeout, with one silent retry on GET only (never on POST/writes —
+  // retrying a write could double-submit) since this backend occasionally
+  // has slow individual requests.
+  async function attempt() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    try {
+      return await fetch(path, { ...opts, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  let res;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return JSON.parse(JSON.stringify(DEFAULTS));
-    return Object.assign({}, DEFAULTS, JSON.parse(raw));
-  } catch { return JSON.parse(JSON.stringify(DEFAULTS)); }
+    res = await attempt();
+  } catch (e) {
+    if (method === 'GET') {
+      try { res = await attempt(); }
+      catch (e2) { throw new Error('Network error — check your connection and try again'); }
+    } else {
+      throw new Error('Network error — check your connection and try again');
+    }
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Not authorized — try locking and unlocking again');
+    if (res.status === 413) throw new Error('That’s too large to save (try a smaller image)');
+    throw new Error('Save failed (server said ' + res.status + ')');
+  }
+  return res.json();
 }
 
-function save(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+let cachedData    = null;
+let inFlightLoad  = null;
+
+/* IMPORTANT: on failure this THROWS — it must never silently return the
+   hardcoded DEFAULTS as if they were real data. Doing that previously meant
+   a transient network blip could make the whole app look "empty", and if
+   the user then saved anything, those defaults would overwrite their real
+   saved content. Every caller is responsible for handling the rejection
+   (see initApp's error screen, and the try/catches below). */
+async function loadData({ force = false } = {}) {
+  if (cachedData && !force) return cachedData;
+  if (inFlightLoad) return inFlightLoad;
+  inFlightLoad = apiFetch('/api/data', { method: 'GET' })
+    .then(d => { cachedData = d; return d; })
+    .finally(() => { inFlightLoad = null; });
+  return inFlightLoad;
+}
+
+async function saveData(data) {
+  await apiFetch('/api/data', { method: 'POST', body: data }); // throws on failure
+  cachedData = data; // only cache after a confirmed successful write
+  return data;
+}
+
+/* Disables `btn` and swaps its label to "Saving…" for the duration of `fn`,
+   shows a danger toast on failure, always restores the button afterward. */
+async function withSaving(btn, fn) {
+  const original = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await fn();
+  } catch (err) {
+    toast(err.message || 'Something went wrong', 'danger');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = original; }
+  }
+}
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function getPin() {
@@ -101,16 +183,18 @@ function updateDots() {
   pinDots.forEach((d, i) => d.classList.toggle('filled', i < pinBuffer.length));
 }
 
-function unlockApp() {
+async function unlockApp() {
   sessionStorage.setItem(SESSION_KEY, '1');
   pinGate.classList.add('is-hidden');
   adminApp.classList.remove('is-hidden');
-  initApp();
+  await initApp();
 }
 
-function checkPin() {
+async function checkPin() {
   if (pinBuffer === getPin()) {
-    unlockApp();
+    const hash = await sha256Hex(pinBuffer);
+    sessionStorage.setItem(SECRET_KEY, hash);
+    await unlockApp();
   } else {
     pinError.textContent = 'Incorrect PIN';
     pinBuffer = '';
@@ -147,6 +231,7 @@ document.addEventListener('keydown', e => {
 /* Lock button */
 document.getElementById('btn-lock').addEventListener('click', () => {
   sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SECRET_KEY);
   adminApp.classList.add('is-hidden');
   pinGate.classList.remove('is-hidden');
   pinBuffer = '';
@@ -156,12 +241,35 @@ document.getElementById('btn-lock').addEventListener('click', () => {
 /* ════════════════════════════════════════════════════════════
    ADMIN APP
    ════════════════════════════════════════════════════════════ */
-function initApp() {
-  const data = load();
-  populateProfile(data);
-  renderProjects(data.projects);
-  buildColorSwatches();
-  initSkills();
+async function initApp() {
+  try {
+    const data = await loadData();
+    populateProfile(data);
+    renderProjects(data.projects);
+    buildColorSwatches();
+    renderCerts(data.certifications);
+    await initSkills();
+    disablePinChange();
+  } catch (err) {
+    showLoadError(err);
+  }
+}
+
+/* Shown when the initial load fails — deliberately replaces the editable UI
+   instead of falling back to placeholder content, so there's nothing here
+   that could be mistakenly saved over your real data. */
+function showLoadError(err) {
+  const main = document.querySelector('.admin-main');
+  main.innerHTML = `
+    <section class="admin-card">
+      <h2 class="card-title">Couldn't load your data</h2>
+      <p class="settings-hint">${esc(err.message || 'Unknown error')}. Nothing has been changed or lost —
+      this just means the page couldn't fetch your saved content, so nothing was loaded into the form.</p>
+      <div class="card-footer">
+        <button id="btn-retry-load" class="btn-primary">Retry</button>
+      </div>
+    </section>`;
+  document.getElementById('btn-retry-load').addEventListener('click', () => location.reload());
 }
 
 /* ── Profile ─────────────────────────────────────────────────── */
@@ -205,20 +313,23 @@ btnRemovePfp.addEventListener('click', () => {
   setPfpPreview(null);
 });
 
-document.getElementById('btn-save-profile').addEventListener('click', () => {
-  const data = load();
-  data.name = document.getElementById('field-name').value.trim() || data.name;
-  data.role = document.getElementById('field-role').value.trim() || data.role;
-  data.bio  = document.getElementById('field-bio').value.trim()  || data.bio;
+document.getElementById('btn-save-profile').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    data.name = document.getElementById('field-name').value.trim() || data.name;
+    data.role = document.getElementById('field-role').value.trim() || data.role;
+    data.bio  = document.getElementById('field-bio').value.trim()  || data.bio;
 
-  if (pfpPreview.src && !pfpPreview.classList.contains('is-hidden')) {
-    data.profilePic = pfpPreview.src;
-  } else if (btnRemovePfp.style.display === 'none') {
-    data.profilePic = null;
-  }
+    if (pfpPreview.src && !pfpPreview.classList.contains('is-hidden')) {
+      data.profilePic = pfpPreview.src;
+    } else if (btnRemovePfp.style.display === 'none') {
+      data.profilePic = null;
+    }
 
-  save(data);
-  toast('Profile saved');
+    await saveData(data);
+    toast('Profile saved');
+  });
 });
 
 /* ── Projects List ───────────────────────────────────────────── */
@@ -253,16 +364,18 @@ document.getElementById('projects-list').addEventListener('click', e => {
   if (!btn) return;
   const id = btn.dataset.id;
   if (btn.dataset.action === 'edit')   openEdit(id);
-  if (btn.dataset.action === 'delete') deleteProject(id);
+  if (btn.dataset.action === 'delete') deleteProject(id, btn);
 });
 
-function deleteProject(id) {
+async function deleteProject(id, btn) {
   if (!confirm('Delete this project?')) return;
-  const data = load();
-  data.projects = data.projects.filter(p => p.id !== id);
-  save(data);
-  renderProjects(data.projects);
-  toast('Project deleted');
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    data.projects = data.projects.filter(p => p.id !== id);
+    await saveData(data);
+    renderProjects(data.projects);
+    toast('Project deleted');
+  });
 }
 
 /* ── Modal ───────────────────────────────────────────────────── */
@@ -341,9 +454,11 @@ function openAdd() {
   document.getElementById('m-title').focus();
 }
 
-function openEdit(id) {
-  const data = load();
-  const p    = data.projects.find(x => x.id === id);
+async function openEdit(id) {
+  let data;
+  try { data = await loadData(); }
+  catch (err) { toast(err.message || 'Could not load project', 'danger'); return; }
+  const p = data.projects.find(x => x.id === id);
   if (!p) return;
   editingId = id;
   modalTitle.textContent = 'Edit Project';
@@ -370,7 +485,8 @@ function closeModal() {
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
-document.getElementById('modal-save').addEventListener('click', () => {
+document.getElementById('modal-save').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
   const title = document.getElementById('m-title').value.trim();
   if (!title) { toast('Title is required', 'danger'); return; }
 
@@ -387,33 +503,194 @@ document.getElementById('modal-save').addEventListener('click', () => {
   };
 
   const wasEditing = !!editingId;
-  const data = load();
-  if (editingId) {
-    const idx = data.projects.findIndex(p => p.id === editingId);
-    if (idx !== -1) data.projects[idx] = project;
-  } else {
-    data.projects.push(project);
-  }
 
-  save(data);
-  renderProjects(data.projects);
-  closeModal();
-  toast(wasEditing ? 'Project updated' : 'Project added');
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    if (editingId) {
+      const idx = data.projects.findIndex(p => p.id === editingId);
+      if (idx !== -1) data.projects[idx] = project;
+    } else {
+      data.projects.push(project);
+    }
+    await saveData(data);
+    renderProjects(data.projects);
+    closeModal();
+    toast(wasEditing ? 'Project updated' : 'Project added');
+  });
 });
 
 document.getElementById('btn-add-project').addEventListener('click', openAdd);
 
-/* Escape key closes modal */
+/* ── Certifications List ─────────────────────────────────────── */
+function renderCerts(certs) {
+  const list = document.getElementById('certs-list');
+  if (!certs || !certs.length) {
+    list.innerHTML = '<p class="proj-empty">No certifications yet. Click "+ Add Certification" to get started.</p>';
+    return;
+  }
+  list.innerHTML = certs.map((c, i) => {
+    const num  = String(i + 1).padStart(2, '0');
+    const meta = [c.issuer, c.date].filter(Boolean).join(' · ');
+    return `<div class="proj-row" data-id="${c.id}">
+      <span class="proj-num">${num}</span>
+      <div class="proj-info">
+        <div class="proj-name">${esc(c.title)}</div>
+        <div class="proj-tags-preview">${esc(meta)}</div>
+      </div>
+      <div class="proj-actions">
+        <button class="btn-ghost btn-small" data-action="edit" data-id="${c.id}">Edit</button>
+        <button class="btn-danger btn-small" data-action="delete" data-id="${c.id}">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('certs-list').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (btn.dataset.action === 'edit')   openCertEdit(id);
+  if (btn.dataset.action === 'delete') deleteCert(id, btn);
+});
+
+async function deleteCert(id, btn) {
+  if (!confirm('Delete this certification?')) return;
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    data.certifications = (data.certifications || []).filter(c => c.id !== id);
+    await saveData(data);
+    renderCerts(data.certifications);
+    toast('Certification deleted');
+  });
+}
+
+/* ── Certification Modal ─────────────────────────────────────── */
+const certModal      = document.getElementById('cert-modal');
+const certModalTitle = document.getElementById('cert-modal-title');
+let   editingCertId  = null;
+let   certImgSrc     = null;
+
+const certImgInput       = document.getElementById('cert-img-input');
+const certImgPreview     = document.getElementById('cert-img-preview');
+const certImgPlaceholder = document.getElementById('cert-img-placeholder');
+const btnRemoveCertImg   = document.getElementById('btn-remove-cert-img');
+
+function setCertImg(src) {
+  certImgSrc = src || null;
+  if (src) {
+    certImgPreview.src = src;
+    certImgPreview.classList.remove('is-hidden');
+    certImgPlaceholder.style.display = 'none';
+    btnRemoveCertImg.style.display = 'inline-flex';
+  } else {
+    certImgPreview.src = '';
+    certImgPreview.classList.add('is-hidden');
+    certImgPlaceholder.style.display = '';
+    btnRemoveCertImg.style.display = 'none';
+  }
+}
+
+certImgInput.addEventListener('change', () => {
+  const file = certImgInput.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Image must be under 3 MB', 'danger'); return; }
+  const reader = new FileReader();
+  reader.onload = e => setCertImg(e.target.result);
+  reader.readAsDataURL(file);
+});
+
+btnRemoveCertImg.addEventListener('click', () => {
+  certImgInput.value = '';
+  setCertImg(null);
+});
+
+function openCertAdd() {
+  editingCertId = null;
+  certModalTitle.textContent = 'Add Certification';
+  document.getElementById('cm-title').value  = '';
+  document.getElementById('cm-issuer').value = '';
+  document.getElementById('cm-date').value   = '';
+  document.getElementById('cm-url').value    = '';
+  certImgInput.value = '';
+  setCertImg(null);
+  certModal.classList.remove('is-hidden');
+  document.getElementById('cm-title').focus();
+}
+
+async function openCertEdit(id) {
+  let data;
+  try { data = await loadData(); }
+  catch (err) { toast(err.message || 'Could not load certification', 'danger'); return; }
+  const c = (data.certifications || []).find(x => x.id === id);
+  if (!c) return;
+  editingCertId = id;
+  certModalTitle.textContent = 'Edit Certification';
+  document.getElementById('cm-title').value  = c.title  || '';
+  document.getElementById('cm-issuer').value = c.issuer || '';
+  document.getElementById('cm-date').value   = c.date   || '';
+  document.getElementById('cm-url').value    = c.url    || '';
+  certImgInput.value = '';
+  setCertImg(c.image || null);
+  certModal.classList.remove('is-hidden');
+  document.getElementById('cm-title').focus();
+}
+
+function closeCertModal() {
+  certModal.classList.add('is-hidden');
+  editingCertId = null;
+  setCertImg(null);
+}
+
+document.getElementById('cert-modal-cancel').addEventListener('click', closeCertModal);
+certModal.addEventListener('click', e => { if (e.target === certModal) closeCertModal(); });
+
+document.getElementById('cert-modal-save').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const title = document.getElementById('cm-title').value.trim();
+  if (!title) { toast('Title is required', 'danger'); return; }
+
+  const cert = {
+    id:     editingCertId || String(Date.now()),
+    title,
+    issuer: document.getElementById('cm-issuer').value.trim(),
+    date:   document.getElementById('cm-date').value.trim(),
+    url:    document.getElementById('cm-url').value.trim(),
+    image:  certImgSrc,
+  };
+
+  const wasEditing = !!editingCertId;
+
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    if (!data.certifications) data.certifications = [];
+    if (editingCertId) {
+      const idx = data.certifications.findIndex(c => c.id === editingCertId);
+      if (idx !== -1) data.certifications[idx] = cert;
+    } else {
+      data.certifications.push(cert);
+    }
+    await saveData(data);
+    renderCerts(data.certifications);
+    closeCertModal();
+    toast(wasEditing ? 'Certification updated' : 'Certification added');
+  });
+});
+
+document.getElementById('btn-add-cert').addEventListener('click', openCertAdd);
+
+/* Escape key closes whichever modal is open */
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !modal.classList.contains('is-hidden')) closeModal();
+  if (e.key !== 'Escape') return;
+  if (!modal.classList.contains('is-hidden')) closeModal();
+  if (!certModal.classList.contains('is-hidden')) closeCertModal();
 });
 
 /* ── Skills ──────────────────────────────────────────────────── */
 let activeSkillCat  = 'frontend';
 let selectedSkills  = { frontend: [], backend: [], tools: [] };
 
-function initSkills() {
-  const data = load();
+async function initSkills() {
+  const data = await loadData();
   selectedSkills = {
     frontend: data.skills && data.skills.frontend ? [...data.skills.frontend] : [...DEFAULT_SKILLS.frontend],
     backend:  data.skills && data.skills.backend  ? [...data.skills.backend]  : [...DEFAULT_SKILLS.backend],
@@ -436,19 +713,22 @@ function initSkills() {
     );
   });
 
-  document.getElementById('btn-save-skills').addEventListener('click', () => {
-    const data = load();
-    data.skills = {
-      frontend: [...selectedSkills.frontend],
-      backend:  [...selectedSkills.backend],
-      tools:    [...selectedSkills.tools],
-    };
-    save(data);
-    toast('Skills saved');
+  document.getElementById('btn-save-skills').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    await withSaving(btn, async () => {
+      const data = await loadData();
+      data.skills = {
+        frontend: [...selectedSkills.frontend],
+        backend:  [...selectedSkills.backend],
+        tools:    [...selectedSkills.tools],
+      };
+      await saveData(data);
+      toast('Skills saved');
+    });
   });
 
   renderSkillChips();
-  initProficiency();
+  await initProficiency();
 }
 
 function renderSkillChips() {
@@ -488,20 +768,23 @@ function renderSkillChips() {
 }
 
 /* ── Proficiency Bars ────────────────────────────────────────── */
-function initProficiency() {
-  renderProficiency();
-  document.getElementById('btn-add-bar').addEventListener('click', () => {
-    const data = load();
-    if (!data.proficiency) data.proficiency = JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
-    data.proficiency.push({ label: 'New Skill', pct: 50 });
-    save(data);
-    renderProficiency();
+async function initProficiency() {
+  await renderProficiency();
+  document.getElementById('btn-add-bar').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    await withSaving(btn, async () => {
+      const data = await loadData();
+      if (!data.proficiency) data.proficiency = JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
+      data.proficiency.push({ label: 'New Skill', pct: 50 });
+      await saveData(data);
+      await renderProficiency();
+    });
   });
 }
 
-function renderProficiency() {
-  const data = load();
-  const bars = (data.proficiency && data.proficiency.length) ? data.proficiency : JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
+async function renderProficiency() {
+  const data = await loadData();
+  const bars = Array.isArray(data.proficiency) ? data.proficiency : JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
   const list = document.getElementById('prof-list');
   list.innerHTML = bars.length ? bars.map((b, i) =>
     `<div class="prof-row">
@@ -519,32 +802,38 @@ document.getElementById('prof-list').addEventListener('click', e => {
   if (!btn) return;
   const i = Number(btn.dataset.i);
   if (btn.dataset.action === 'save-bar')   saveBar(i, btn);
-  if (btn.dataset.action === 'delete-bar') deleteBar(i);
+  if (btn.dataset.action === 'delete-bar') deleteBar(i, btn);
 });
 
-function saveBar(i, btn) {
+async function saveBar(i, btn) {
   const row   = btn.closest('.prof-row');
   const label = row.querySelectorAll('input')[0].value.trim();
   const pct   = Math.min(100, Math.max(0, parseInt(row.querySelectorAll('input')[1].value) || 0));
-  const data  = load();
-  if (!data.proficiency) data.proficiency = JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
-  data.proficiency[i] = { label: label || 'Skill', pct };
-  save(data);
-  toast('Bar saved');
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    if (!data.proficiency) data.proficiency = JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
+    data.proficiency[i] = { label: label || 'Skill', pct };
+    await saveData(data);
+    toast('Bar saved');
+  });
 }
 
-function deleteBar(i) {
-  const data = load();
-  if (!data.proficiency) data.proficiency = JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
-  data.proficiency.splice(i, 1);
-  save(data);
-  renderProficiency();
-  toast('Bar removed');
+async function deleteBar(i, btn) {
+  await withSaving(btn, async () => {
+    const data = await loadData();
+    if (!data.proficiency) data.proficiency = JSON.parse(JSON.stringify(DEFAULT_PROFICIENCY));
+    data.proficiency.splice(i, 1);
+    await saveData(data);
+    await renderProficiency();
+    toast('Bar removed');
+  });
 }
 
-/* ── Export for Vercel ───────────────────────────────────────── */
-document.getElementById('btn-export').addEventListener('click', () => {
-  const data = load();
+/* ── Backup download ─────────────────────────────────────────── */
+document.getElementById('btn-export').addEventListener('click', async () => {
+  let data;
+  try { data = await loadData(); }
+  catch (err) { toast(err.message || 'Could not load data to export', 'danger'); return; }
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -555,17 +844,22 @@ document.getElementById('btn-export').addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('data.json downloaded — replace the file in your project, then git push');
+  toast('Backup downloaded — your live site already has this data, this is just a local copy');
 });
 
-/* ── PIN Change ──────────────────────────────────────────────── */
-document.getElementById('btn-change-pin').addEventListener('click', () => {
-  const newPin = document.getElementById('new-pin').value.trim();
-  if (!/^\d{4}$/.test(newPin)) { toast('PIN must be exactly 4 digits', 'danger'); return; }
-  localStorage.setItem(PIN_KEY, newPin);
-  document.getElementById('new-pin').value = '';
-  toast('PIN changed');
-});
+/* ── PIN change — disabled: the real write credential is a server-side
+   env var (ADMIN_PIN_HASH) now, so a client-side PIN change here would
+   silently desync and start failing every save. Rotate it by updating
+   that env var and redeploying instead. ───────────────────────────── */
+function disablePinChange() {
+  const btn   = document.getElementById('btn-change-pin');
+  const input = document.getElementById('new-pin');
+  const hint  = btn.closest('.settings-row').querySelector('.settings-hint');
+  btn.disabled = true;
+  input.disabled = true;
+  input.placeholder = 'Managed on the server';
+  hint.textContent = 'The PIN is now enforced by the server, not just this page — ask your developer to rotate it if needed.';
+}
 
 /* ── Utility ─────────────────────────────────────────────────── */
 function esc(s) {
@@ -575,4 +869,6 @@ function esc(s) {
 /* Auto-unlock if already authenticated this session — must run last, after
    every const/listener above it (pfpPreview, modal, etc.) has initialized,
    since unlockApp() -> initApp() touches all of them. */
-if (sessionStorage.getItem(SESSION_KEY)) unlockApp();
+if (sessionStorage.getItem(SESSION_KEY)) {
+  unlockApp().catch(err => console.error('Auto-unlock failed:', err));
+}

@@ -24,6 +24,10 @@ const PORTFOLIO_DEFAULTS = {
     { id: '2', title: 'TaskFlow', badge: '', desc: 'Full-stack project management app with real-time collaboration, authentication, and drag-and-drop task boards.', tags: ['React','Node.js','PostgreSQL','Docker'], github: '#', demo: '#', accentColor: 'rgba(120,60,220,0.18)' },
     { id: '3', title: 'SentimentLens', badge: '', desc: 'ML-powered REST API that classifies text sentiment and emotion from social media data using a fine-tuned model.', tags: ['Python','scikit-learn','FastAPI','NumPy'], github: '#', demo: '', accentColor: 'rgba(0,200,120,0.15)' },
     { id: '4', title: 'This Portfolio', badge: '', desc: 'Built from scratch with vanilla HTML, CSS, and JS — featuring a particle canvas, aurora animations, and horizontal scroll.', tags: ['HTML5','CSS3','JavaScript'], github: '#', demo: '', accentColor: 'rgba(255,150,30,0.15)' }
+  ],
+  certifications: [
+    { id: 'c1', title: 'AWS Certified Cloud Practitioner', issuer: 'Amazon Web Services', date: '2025', url: '', image: null },
+    { id: 'c2', title: 'Deep Learning Specialization', issuer: 'DeepLearning.AI', date: '2024', url: '', image: null },
   ]
 };
 
@@ -73,7 +77,9 @@ function renderPortfolio(data) {
   // Proficiency bars
   const barList = document.getElementById('bar-list');
   if (barList) {
-    const bars = (data.proficiency && data.proficiency.length) ? data.proficiency : PORTFOLIO_DEFAULTS.proficiency;
+    // Array.isArray (not a length check) so an intentionally-emptied list stays empty
+    // instead of silently falling back to the seed placeholders.
+    const bars = Array.isArray(data.proficiency) ? data.proficiency : PORTFOLIO_DEFAULTS.proficiency;
     barList.innerHTML = bars.map(b =>
       `<div class="bar-item">
         <div class="bar-label"><span>${escHtml(b.label)}</span><span class="bar-pct">${b.pct}%</span></div>
@@ -90,7 +96,7 @@ function renderPortfolio(data) {
   // Projects — fanned deck, click a card to swap it to the front
   const track = document.getElementById('projects-track');
   if (track) {
-    const list = (data.projects && data.projects.length) ? data.projects : PORTFOLIO_DEFAULTS.projects;
+    const list = Array.isArray(data.projects) ? data.projects : PORTFOLIO_DEFAULTS.projects;
     const ghIcon = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>`;
     const demoIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>`;
 
@@ -116,6 +122,34 @@ function renderPortfolio(data) {
     }).join('');
 
     layoutDeck(track, 0);
+  }
+
+  // Certifications
+  const certGrid = document.getElementById('certifications-grid');
+  if (certGrid) {
+    const certs = Array.isArray(data.certifications) ? data.certifications : PORTFOLIO_DEFAULTS.certifications;
+    if (!certs || !certs.length) {
+      certGrid.innerHTML = '<p class="cert-empty">No certifications added yet.</p>';
+    } else {
+      const linkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+      certGrid.innerHTML = certs.map(c => {
+        const hasImg = !!c.image;
+        const iconStyle = hasImg ? `background-image:url(${escHtml(c.image)});` : '';
+        const initials = escHtml((c.title || '?').slice(0, 2).toUpperCase());
+        const link = c.url ? `<a href="${escHtml(c.url)}" target="_blank" rel="noopener" class="cert-card-link">${linkIcon}View Credential</a>` : '';
+        return `<div class="cert-card">
+          <div class="cert-card-head">
+            <div class="cert-card-icon" style="${iconStyle}">${hasImg ? '' : initials}</div>
+            <div class="cert-card-title-wrap">
+              <p class="cert-card-title">${escHtml(c.title)}</p>
+              <p class="cert-card-issuer">${escHtml(c.issuer || '')}</p>
+            </div>
+          </div>
+          ${c.date ? `<span class="cert-card-date">${escHtml(c.date)}</span>` : ''}
+          ${link}
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -162,12 +196,12 @@ function layoutDeck(track, active) {
 /* Phase 1 — render immediately from localStorage */
 renderPortfolio(getPortfolioData());
 
-/* Phase 2 — fetch data.json (served by Vercel); update + re-render if found.
-   Silently does nothing when running from file:// locally. */
-fetch('./data.json')
+/* Phase 2 — fetch the live data from the backend API; update + re-render if found.
+   Silently does nothing when running from file:// locally or the API is unreachable. */
+fetch('/api/data')
   .then(r => r.ok ? r.json() : null)
   .then(d => {
-    if (!d) return;
+    if (!d || typeof d !== 'object' || !Array.isArray(d.projects)) return;
     localStorage.setItem('portfolio_data', JSON.stringify(d));
     renderPortfolio(d);
   })

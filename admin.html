@@ -104,6 +104,17 @@
         </div>
       </section>
 
+      <!-- ── Certifications ── -->
+      <section class="admin-card">
+        <div class="card-header">
+          <h2 class="card-title">Certifications</h2>
+          <button id="btn-add-cert" class="btn-primary btn-small">+ Add Certification</button>
+        </div>
+        <div id="certs-list" class="projects-list">
+          <!-- filled by admin.js -->
+        </div>
+      </section>
+
       <!-- ── Skills ── -->
       <section class="admin-card">
         <h2 class="card-title">Skills</h2>
@@ -216,6 +227,50 @@
       <div class="modal-footer">
         <button id="modal-cancel" class="btn-ghost">Cancel</button>
         <button id="modal-save" class="btn-primary">Save Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Certification Edit / Add Modal -->
+  <div id="cert-modal" class="modal-overlay is-hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="cert-modal-title" class="modal-title">Add Certification</h3>
+
+      <div class="modal-body">
+        <div class="field-label">
+          Badge Image <span class="field-hint">(optional)</span>
+          <div class="proj-img-wrap" id="cert-img-wrap">
+            <img id="cert-img-preview" src="" alt="" class="proj-img-preview is-hidden" />
+            <div class="proj-img-placeholder" id="cert-img-placeholder">No image</div>
+          </div>
+          <div class="proj-img-actions">
+            <label class="btn-ghost btn-small proj-img-label" for="cert-img-input">Upload Image</label>
+            <input type="file" id="cert-img-input" accept="image/*" class="is-hidden" />
+            <button type="button" id="btn-remove-cert-img" class="btn-danger btn-small" style="display:none;">Remove</button>
+          </div>
+        </div>
+
+        <label class="field-label">
+          Title
+          <input type="text" id="cm-title" class="admin-input" placeholder="e.g. AWS Certified Cloud Practitioner" />
+        </label>
+        <label class="field-label">
+          Issuer
+          <input type="text" id="cm-issuer" class="admin-input" placeholder="e.g. Amazon Web Services" />
+        </label>
+        <label class="field-label">
+          Date <span class="field-hint">(optional)</span>
+          <input type="text" id="cm-date" class="admin-input" placeholder="e.g. 2025" />
+        </label>
+        <label class="field-label">
+          Credential URL <span class="field-hint">(optional)</span>
+          <input type="text" id="cm-url" class="admin-input" placeholder="https://..." />
+        </label>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cert-modal-cancel" class="btn-ghost">Cancel</button>
+        <button id="cert-modal-save" class="btn-primary">Save Certification</button>
       </div>
     </div>
   </div>

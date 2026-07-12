@@ -5,3 +5,6 @@ desktop.ini
 *:Zone.Identifier
 *.deb
 .claude/
+.vercel
+.env*
+node_modules/
